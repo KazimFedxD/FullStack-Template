@@ -24,21 +24,27 @@ export const AuthProvider = ({ children }) => {
       await new Promise(resolve => setTimeout(resolve, 100));
       
       const token = await getAccessToken();
-      if (token) {
+      
+      // Get user info from localStorage
+      const userId = localStorage.getItem('user_id');
+      const userEmail = localStorage.getItem('user_email');
+      
+      // Only consider authenticated if we have BOTH token AND user data
+      if (token && userId && userEmail) {
         setIsAuthenticated(true);
-        // Get user info from localStorage
-        const userId = localStorage.getItem('user_id');
-        const userEmail = localStorage.getItem('user_email');
-        if (userId && userEmail) {
-          setUser({ id: userId, email: userEmail });
-        }
+        setUser({ id: userId, email: userEmail });
       } else {
+        // Either no token or no user data - clear everything and set as unauthenticated
         setIsAuthenticated(false);
         setUser(null);
+        if (!userId || !userEmail) {
+          clearAuthData(); // Clear any partial data
+        }
       }
     } catch (error) {
       setIsAuthenticated(false);
       setUser(null);
+      clearAuthData();
     } finally {
       setIsLoading(false);
     }

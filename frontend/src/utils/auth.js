@@ -63,8 +63,34 @@ export async function getAccessToken() {
     });
     
     if (response.ok) {
-      // User is authenticated, access token is valid in cookies
-      return 'authenticated'; // Return a truthy value
+      // Check if we have user data in localStorage as well
+      const userId = localStorage.getItem('user_id');
+      const userEmail = localStorage.getItem('user_email');
+      
+      // Parse response to check if backend returned user data
+      let userData = null;
+      try {
+        userData = await response.json();
+      } catch (e) {
+        // Response might not be JSON, that's okay
+      }
+      
+      // Only consider authenticated if we have both backend confirmation AND user data
+      if (userData && userData.user_id && userData.user_email) {
+        // Save user data from backend response
+        saveAuthData({
+          user_id: userData.user_id,
+          user_email: userData.user_email
+        });
+        return 'authenticated';
+      } else if (userId && userEmail) {
+        // We have local user data, trust the backend response
+        return 'authenticated';
+      } else {
+        // Backend says OK but no user data - clear auth and return null
+        clearAuthData();
+        return null;
+      }
     } else if (response.status === 401) {
       // Try to refresh token
       const refreshResponse = await fetch(`${APP_CONFIG.api.baseUrl}${APP_CONFIG.api.endpoints.refreshToken}`, {
@@ -73,8 +99,17 @@ export async function getAccessToken() {
       });
       
       if (refreshResponse.ok) {
-        // Token refreshed successfully
-        return 'authenticated';
+        // Token refreshed successfully, but verify we have user data
+        const userId = localStorage.getItem('user_id');
+        const userEmail = localStorage.getItem('user_email');
+        
+        if (userId && userEmail) {
+          return 'authenticated';
+        } else {
+          // No user data even after refresh
+          clearAuthData();
+          return null;
+        }
       } else {
         // Refresh failed, user needs to login
         clearAuthData();
@@ -87,6 +122,7 @@ export async function getAccessToken() {
     }
   } catch (error) {
     // Network error or other issue
+    clearAuthData();
     return null;
   }
 }
