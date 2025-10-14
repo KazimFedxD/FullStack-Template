@@ -1,0 +1,60 @@
+# Project specific test files
+backuptest
+*test*
+test.rest
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.sublime-*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker volumes and data
+postgres_data/
+redis_data/
+frontend_node_modules/
+
+# SSL Certificates (keep examples)
+certs/
+*.pem
+*.key
+*.crt
+!certs/README.md
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+
+# Logs
+*.log
+logs/
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Docker override files
+docker-compose.override.yml
+
+# Database dumps
+*.sql
+*.dump
+
+# Temporary files
+tmp/
+temp/
