@@ -1,0 +1,64 @@
+# Log Locations
+
+This file specifies where to check for logs when debugging issues.
+
+## Docker Containers
+backend: docker
+frontend: docker
+
+## Commands to Check Logs
+
+### Backend Logs
+```bash
+docker-compose logs backend
+docker-compose logs -f backend  # Follow logs in real-time
+```
+
+### Frontend Logs
+```bash
+docker-compose logs frontend
+docker-compose logs -f frontend  # Follow logs in real-time
+```
+
+### Database Logs
+```bash
+docker-compose logs db
+```
+
+### Redis Logs
+```bash
+docker-compose logs redis
+```
+
+### Celery Worker Logs
+```bash
+docker-compose logs celery
+```
+
+### Celery Beat Logs
+```bash
+docker-compose logs celery-beat
+```
+
+### All Services
+```bash
+docker-compose logs
+docker-compose logs -f  # Follow all logs
+```
+
+## Application Logs (Backend)
+
+The backend creates log files in `backend/logs/` directory:
+- `django.log` - General application logs
+- `errors.log` - Error-only logs (JSON format)
+- `security.log` - Auth/permissions warnings
+- `api.log` - API-specific operations
+- `celery.log` - Background task logs
+- `database.log` - SQL queries (DEBUG mode only)
+
+Check these files when debugging backend issues:
+```bash
+tail -f backend/logs/django.log
+tail -f backend/logs/errors.log
+tail -f backend/logs/api.log
+```

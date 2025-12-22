@@ -1,155 +1,182 @@
-// src/utils/cache.js
+// Generic cache utility for browser caching with TTL support
 
-// Cache utilities for reducing redundant API calls
-class SimpleCache {
-  constructor() {
-    this.cache = new Map();
-    this.defaultTTL = 5 * 60 * 1000; // 5 minutes default TTL
+class BrowserCache {
+  constructor(prefix = 'app_cache_') {
+    this.prefix = prefix;
+    this.storage = localStorage;
   }
 
-  // Generate cache key from parameters
-  generateKey(prefix, params = {}) {
-    const sortedParams = Object.keys(params)
-      .sort()
-      .map(key => `${key}:${params[key]}`)
-      .join(',');
-    return `${prefix}${sortedParams ? `_${sortedParams}` : ''}`;
+  // Generate prefixed key
+  _getKey(key) {
+    return `${this.prefix}${key}`;
   }
 
-  // Set cache entry with TTL
-  set(key, data, ttl = this.defaultTTL) {
-    const expiry = Date.now() + ttl;
-    this.cache.set(key, { data, expiry });
-  }
-
-  // Get cache entry if not expired
-  get(key) {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-
-    if (Date.now() > entry.expiry) {
-      this.cache.delete(key);
-      return null;
+  // Set cache with TTL (time to live in seconds)
+  set(key, value, ttl = 3600) {
+    try {
+      const item = {
+        value,
+        expiry: Date.now() + (ttl * 1000),
+        timestamp: Date.now()
+      };
+      this.storage.setItem(this._getKey(key), JSON.stringify(item));
+      return true;
+    } catch (error) {
+      console.error('Cache set error:', error);
+      return false;
     }
-
-    return entry.data;
   }
 
-  // Check if key exists and is not expired
+  // Get cached value
+  get(key, defaultValue = null) {
+    try {
+      const itemStr = this.storage.getItem(this._getKey(key));
+      if (!itemStr) {
+        return defaultValue;
+      }
+
+      const item = JSON.parse(itemStr);
+      
+      // Check if expired
+      if (Date.now() > item.expiry) {
+        this.remove(key);
+        return defaultValue;
+      }
+
+      return item.value;
+    } catch (error) {
+      console.error('Cache get error:', error);
+      return defaultValue;
+    }
+  }
+
+  // Remove specific cache entry
+  remove(key) {
+    try {
+      this.storage.removeItem(this._getKey(key));
+      return true;
+    } catch (error) {
+      console.error('Cache remove error:', error);
+      return false;
+    }
+  }
+
+  // Check if cache exists and is valid
   has(key) {
-    return this.get(key) !== null;
+    const value = this.get(key);
+    return value !== null;
   }
 
-  // Clear expired entries
-  cleanup() {
-    const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
-      if (now > entry.expiry) {
-        this.cache.delete(key);
-      }
+  // Clear all cache with this prefix
+  clear() {
+    try {
+      const keys = Object.keys(this.storage);
+      keys.forEach(key => {
+        if (key.startsWith(this.prefix)) {
+          this.storage.removeItem(key);
+        }
+      });
+      return true;
+    } catch (error) {
+      console.error('Cache clear error:', error);
+      return false;
     }
   }
 
-  // Clear all cache entries
-  clear() {
-    this.cache.clear();
+  // Get all cache keys
+  keys() {
+    try {
+      const keys = Object.keys(this.storage);
+      return keys
+        .filter(key => key.startsWith(this.prefix))
+        .map(key => key.substring(this.prefix.length));
+    } catch (error) {
+      console.error('Cache keys error:', error);
+      return [];
+    }
   }
 
-  // Clear entries by prefix
-  clearByPrefix(prefix) {
-    for (const key of this.cache.keys()) {
-      if (key.startsWith(prefix)) {
-        this.cache.delete(key);
+  // Get cache size (approximate, in characters)
+  size() {
+    try {
+      let total = 0;
+      const keys = Object.keys(this.storage);
+      keys.forEach(key => {
+        if (key.startsWith(this.prefix)) {
+          total += this.storage.getItem(key)?.length || 0;
+        }
+      });
+      return total;
+    } catch (error) {
+      console.error('Cache size error:', error);
+      return 0;
+    }
+  }
+
+  // Clean expired entries
+  cleanExpired() {
+    try {
+      const keys = this.keys();
+      let cleaned = 0;
+      
+      keys.forEach(key => {
+        const itemStr = this.storage.getItem(this._getKey(key));
+        if (itemStr) {
+          try {
+            const item = JSON.parse(itemStr);
+            if (Date.now() > item.expiry) {
+              this.remove(key);
+              cleaned++;
+            }
+          } catch (e) {
+            // Invalid item, remove it
+            this.remove(key);
+            cleaned++;
+          }
+        }
+      });
+      
+      return cleaned;
+    } catch (error) {
+      console.error('Cache clean error:', error);
+      return 0;
+    }
+  }
+
+  // Get metadata about cache entry
+  getMetadata(key) {
+    try {
+      const itemStr = this.storage.getItem(this._getKey(key));
+      if (!itemStr) {
+        return null;
       }
+
+      const item = JSON.parse(itemStr);
+      return {
+        key,
+        timestamp: item.timestamp,
+        expiry: item.expiry,
+        ttl: Math.max(0, Math.floor((item.expiry - Date.now()) / 1000)),
+        expired: Date.now() > item.expiry
+      };
+    } catch (error) {
+      console.error('Cache metadata error:', error);
+      return null;
     }
   }
 }
 
-// Create a global cache instance
-const cache = new SimpleCache();
+// Export singleton instance
+export const cache = new BrowserCache('app_cache_');
 
-// Cleanup expired entries every 5 minutes
-setInterval(() => cache.cleanup(), 5 * 60 * 1000);
+// Export class for creating custom cache instances
+export { BrowserCache };
 
-// Weather data caching (longer TTL since weather doesn't change frequently)
-export const cacheWeatherData = (lat, lon, date, hour, data) => {
-  const key = cache.generateKey('weather', { lat, lon, date, hour });
-  cache.set(key, data, 15 * 60 * 1000); // 15 minutes for weather data
-};
-
-export const getCachedWeatherData = (lat, lon, date, hour) => {
-  const key = cache.generateKey('weather', { lat, lon, date, hour });
-  return cache.get(key);
-};
-
-// User preferences caching
-export const cacheUserPreferences = (userId, preferences) => {
-  const key = cache.generateKey('preferences', { userId });
-  cache.set(key, preferences, 10 * 60 * 1000); // 10 minutes
-};
-
-export const getCachedUserPreferences = (userId) => {
-  const key = cache.generateKey('preferences', { userId });
-  return cache.get(key);
-};
-
-// User subscriptions caching
-export const cacheUserSubscriptions = (userId, subscriptions) => {
-  const key = cache.generateKey('subscriptions', { userId });
-  cache.set(key, subscriptions, 5 * 60 * 1000); // 5 minutes
-};
-
-export const getCachedUserSubscriptions = (userId) => {
-  const key = cache.generateKey('subscriptions', { userId });
-  return cache.get(key);
-};
-
-// Clear user-specific cache on logout
-export const clearUserCache = (userId) => {
-  cache.clearByPrefix(`preferences_userId:${userId}`);
-  cache.clearByPrefix(`subscriptions_userId:${userId}`);
-};
-
-// Geocoding cache (locations don't change)
-export const cacheGeocodingData = (lat, lon, data) => {
-  const key = cache.generateKey('geocoding', { lat, lon });
-  cache.set(key, data, 24 * 60 * 60 * 1000); // 24 hours for geocoding
-};
-
-export const getCachedGeocodingData = (lat, lon) => {
-  const key = cache.generateKey('geocoding', { lat, lon });
-  return cache.get(key);
-};
-
-// Weather preferences and precautions caching
-export const cacheWeatherAnalysis = (weatherDataHash, analysisType, data) => {
-  const key = cache.generateKey('analysis', { hash: weatherDataHash, type: analysisType });
-  cache.set(key, data, 30 * 60 * 1000); // 30 minutes for analysis
-};
-
-export const getCachedWeatherAnalysis = (weatherDataHash, analysisType) => {
-  const key = cache.generateKey('analysis', { hash: weatherDataHash, type: analysisType });
-  return cache.get(key);
-};
-
-// Utility to create hash for weather data (for analysis caching)
-export const createWeatherDataHash = (weatherData) => {
-  if (!weatherData) return null;
-  const str = JSON.stringify({
-    temperature: weatherData.temperature,
-    humidity: weatherData.humidity,
-    windSpeed: weatherData.wind_speed,
-    precipitation: weatherData.precipitation,
-    location: weatherData.location
-  });
-  // Simple hash function
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return hash.toString();
-};
+// Export convenience methods
+export const getCache = (key, defaultValue = null) => cache.get(key, defaultValue);
+export const setCache = (key, value, ttl = 3600) => cache.set(key, value, ttl);
+export const removeCache = (key) => cache.remove(key);
+export const clearCache = () => cache.clear();
+export const hasCache = (key) => cache.has(key);
 
 export default cache;

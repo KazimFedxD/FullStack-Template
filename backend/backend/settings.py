@@ -27,12 +27,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-4k3a4kybqv4ig34&y6#rvv-m(_-(esk30%2m^xwbyqfh(zeul#"
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-4k3a4kybqv4ig34&y6#rvv-m(_-(esk30%2m^xwbyqfh(zeul#")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = ["*"]  # Allow all hosts for development; adjust in production
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*").split(",")  # Comma-separated list
+
+# Application name - can be customized via environment variable
+APP_NAME = os.getenv("APP_NAME", "FullStack Template")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
@@ -42,6 +45,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.AllowAny",
     ],
+    "EXCEPTION_HANDLER": "utils.error_handler.ratelimit_exception_handler",
 }
 
 SIMPLE_JWT = {
@@ -58,9 +62,13 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    
     "rest_framework_simplejwt.token_blacklist",
     "rest_framework",
+    
     "django_celery_beat",
+    "django_ratelimit",
+    
     "corsheaders",
     
     "api",
@@ -69,6 +77,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "backend.middleware.RequestLoggingMiddleware",  # Request logging
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -151,10 +160,34 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins for development; adjust in production
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
 CORS_ALLOWS_CREDENTIALS = True  # Allow credentials for CORS requests
 
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+# ==========================================
+# CACHE CONFIGURATION
+# ==========================================
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': os.getenv("REDIS_URL", "redis://redis:6379/1"),
+        'KEY_PREFIX': os.getenv("CACHE_PREFIX", "app"),
+        'TIMEOUT': 300,  # 5 minutes default
+    }
+}
+
+# ==========================================
+# CELERY CONFIGURATION
+# ==========================================
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 # Celery Beat settings for periodic tasks
@@ -163,15 +196,22 @@ CELERY_BEAT_SCHEDULE = {
         "task": "usermanagement.models.clear_verification_tokens",
         "schedule": 60.0,  # Run every 60 seconds
     },
-    "send-daily-forecast-letters": {
-        "task": "api.data.send_daily_forecast_letters",
-        "schedule": crontab(hour=12, minute=0),  # Run daily at 12:00 PM
-    },
-    "clear-expired-reports": {
-        "task": "api.data.clear_expired_reports",
-        "schedule": 60,  # Run every 30 minutes
-    },
+    # Add your custom periodic tasks here
 }
 CELERY_TIMEZONE = "UTC"
+
+# ==========================================
+# RATE LIMITING CONFIGURATION
+# ==========================================
+
+# Import rate limit configuration
+from .ratelimit_config import RATE_LIMITS, RATELIMIT_VIEW
+
+# ==========================================
+# LOGGING CONFIGURATION
+# ==========================================
+
+# Import logging configuration
+from .logging_config import LOGGING
 
 AUTH_USER_MODEL = "usermanagement.AuthAcc"  # Use custom user model

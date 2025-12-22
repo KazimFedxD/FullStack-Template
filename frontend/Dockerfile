@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -14,8 +14,9 @@ RUN npm install
 # Copy the rest of the app
 COPY . .
 
-# Expose dev server port
-EXPOSE 3000
+# Expose Vite dev server port
+EXPOSE 5173
 
-# Start dev server
-CMD ["npm", "start"]
+# Start Vite dev server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+

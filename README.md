@@ -2,12 +2,37 @@
 
 A modern, production-ready full-stack web application template featuring:
 
-- **Frontend**: React 19 with Tailwind CSS, Framer Motion, and modern authentication
+- **Frontend**: React 19 with Vite, Tailwind CSS 4, Framer Motion, and modern authentication
 - **Backend**: Django 5.2 with Django REST Framework, JWT authentication, and Celery
-- **Database**: PostgreSQL with flexible configuration
-- **Cache/Queue**: Redis for Celery task queue and caching
+- **Database**: PostgreSQL 16 with flexible configuration
+- **Cache/Queue**: Redis 7 for Celery task queue and caching
 - **Proxy**: Nginx for reverse proxy and static file serving
 - **Containerization**: Docker Compose for easy development and deployment
+
+## ✨ Features
+
+### Frontend
+- ⚡ **Vite** - Lightning-fast HMR and build times
+- 🎨 **Tailwind CSS 4** - Utility-first CSS framework
+- 🎭 **Framer Motion** - Production-ready animations
+- 🔐 **JWT Authentication** - Cookie-based auth with auto-refresh
+- 📦 **API Client** - Centralized API handling with retry logic
+- 🎯 **Error Handling** - Comprehensive error management
+- 💾 **State Preservation** - Form/scroll state across reloads
+- ⚡ **Browser Caching** - TTL-based caching system
+- 🪝 **Custom Hooks** - useAlert, useErrorHandler
+
+### Backend
+- 🔐 **JWT Cookie Auth** - Secure httpOnly cookie authentication
+- 📧 **Email Templates** - Beautiful responsive email templates
+- 📝 **Logging System** - Multi-file rotating logs with JSON formatting
+- 🛡️ **Rate Limiting** - Configurable rate limits per endpoint
+- ⚡ **Custom Cache System** - Dict-like cache interface
+- 🔒 **Encryption Utilities** - Fernet encryption/decryption
+- 🎯 **Error Handlers** - Centralized error response system
+- 🔑 **API Key Permissions** - Environment-based API authentication
+- 📊 **Request Logging Middleware** - Automatic API request logging
+- 🔄 **Celery Tasks** - Background job processing with Beat scheduler
 
 ## 🚀 Quick Start
 
@@ -39,31 +64,46 @@ Create environment files:
 
 **Backend (.env in /backend/)**
 ```env
+# Application Settings
+APP_NAME=YourAppName
+DEBUG=True
+SECRET_KEY=your-secret-key-here-change-in-production
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Base URL (without trailing slash)
+BASE_URL=http://localhost
+
 # Database
 DATABASE_URL=postgres://template_user:template_password@db:5432/template_db
 
-# Security
-SECRET_KEY=your-super-secret-key-change-this-in-production
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
-
 # Email Configuration
-EMAIL=your-email@gmail.com
-EMAIL_PASS=your-app-password
 EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=465
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL=your-email@example.com
+EMAIL_PASS=your-email-password-or-app-password
+
+# Redis & Cache
+REDIS_URL=redis://redis:6379/1
+CACHE_PREFIX=myapp
 
 # Celery
 CELERY_BROKER_URL=redis://redis:6379/0
 
-# Encryption (auto-generated if not provided)
-# ENCRYPTION_KEY=your-encryption-key
+# API Key (Optional)
+API_KEY=your-api-key-here
 ```
 
 **Frontend (.env in /frontend/)**
 ```env
-REACT_APP_API_URL=http://localhost:8000
-REACT_APP_APP_NAME=Your App Name
+# API Configuration
+VITE_API_URL=http://localhost/api
+
+# Application Name
+VITE_APP_NAME=YourAppName
+
+# Optional: Environment
+VITE_ENV=development
 ```
 
 ### 3. Docker Deployment
@@ -73,9 +113,15 @@ REACT_APP_APP_NAME=Your App Name
 docker-compose up -d
 ```
 
-**Production:**
+**View logs:**
 ```bash
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker-compose logs -f
+```
+
+**Rebuild after changes:**
+```bash
+docker-compose down
+docker-compose up -d --build
 ```
 
 ### 4. Initialize Database
@@ -90,14 +136,12 @@ docker-compose exec backend python manage.py createsuperuser
 
 ### 5. Access the Application
 
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost:5173 (dev) or http://localhost (nginx)
 - **Backend API**: http://localhost:8000
 - **Admin Panel**: http://localhost:8000/admin
-- **Nginx (Production)**: http://localhost
+- **Nginx Proxy**: http://localhost
 
 ## 📁 Project Structure
-
-```
 FullStack Template/
 ├── backend/                 # Django backend
 │   ├── backend/            # Django project settings

@@ -13,8 +13,9 @@ from celery import shared_task
 import datetime
 import random
 import string
+import logging
 
-from custom import debug
+logger = logging.getLogger(__name__)
 
 # Create your models here.
 
@@ -28,7 +29,7 @@ VERIFICATION_TOKENS: list[VerificationToken] = []
 def clear_verification_tokens() -> None:
     """Clear expired verification tokens."""
     global VERIFICATION_TOKENS
-    debug("Checking for expired verification tokens...")
+    logger.debug("Checking for expired verification tokens...")
     expired: list[VerificationToken] = []
     for token in VERIFICATION_TOKENS[
         :

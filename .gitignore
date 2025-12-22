@@ -3,6 +3,9 @@ backuptest
 *test*
 test.rest
 
+# Portfolio documentation (contains project details)
+.website/
+
 # IDE and Editor files
 .vscode/
 .idea/

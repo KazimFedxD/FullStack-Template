@@ -1,4 +1,4 @@
-// Centralized error handling utilities
+// Centralized error handling utilities - generic for all websites
 
 export const ERROR_TYPES = {
   NETWORK: 'network',
@@ -45,7 +45,7 @@ export const parseBackendError = (error, response = null) => {
     return {
       type: ERROR_TYPES.SERVER,
       title: 'Unexpected Error',
-      message: 'Something went wrong. Please try again.',
+      message: error?.message || 'Something went wrong. Please try again.',
       canRetry: true
     };
   }
@@ -80,6 +80,15 @@ export const parseBackendError = (error, response = null) => {
     };
   }
 
+  if (status === 429) {
+    return {
+      type: ERROR_TYPES.SERVER,
+      title: 'Too Many Requests',
+      message: 'Please slow down. Try again in a few moments.',
+      canRetry: true
+    };
+  }
+
   if (status >= 500) {
     return {
       type: ERROR_TYPES.SERVER,
@@ -111,6 +120,31 @@ export const extractErrorMessage = async (response) => {
   try {
     const data = await response.json();
     
+    // New standardized backend error format (utils/error_handler.py)
+    if (data.error && typeof data.error === 'object') {
+      const error = data.error;
+      let message = error.message || 'An error occurred';
+      
+      // Add details if available
+      if (error.details) {
+        if (typeof error.details === 'string') {
+          message += ` (${error.details})`;
+        } else if (error.details.validation_errors) {
+          // Parse validation errors
+          const validationErrors = parseValidationErrors(error.details.validation_errors);
+          message = validationErrors;
+        } else if (Object.keys(error.details).length > 0) {
+          // Show first detail
+          const firstDetail = Object.values(error.details)[0];
+          if (typeof firstDetail === 'string') {
+            message += ` (${firstDetail})`;
+          }
+        }
+      }
+      
+      return message;
+    }
+    
     // Django REST Framework error formats
     if (data.error) return data.error;
     if (data.detail) return data.detail;
@@ -119,12 +153,14 @@ export const extractErrorMessage = async (response) => {
     // Validation errors
     if (data.non_field_errors) return data.non_field_errors[0];
     
-    // Field-specific errors
+    // Field-specific errors (DRF serializer errors)
     const fieldErrors = Object.keys(data).filter(key => 
       Array.isArray(data[key]) && data[key].length > 0
     );
     if (fieldErrors.length > 0) {
-      return `${fieldErrors[0]}: ${data[fieldErrors[0]][0]}`;
+      const field = fieldErrors[0];
+      const fieldName = formatFieldName(field);
+      return `${fieldName}: ${data[field][0]}`;
     }
 
     return 'An error occurred';
@@ -133,33 +169,77 @@ export const extractErrorMessage = async (response) => {
   }
 };
 
-// Create standardized error object with backend message
+// Parse validation errors into readable format
+const parseValidationErrors = (errors) => {
+  if (typeof errors === 'string') return errors;
+  
+  if (Array.isArray(errors)) {
+    return errors.join(', ');
+  }
+  
+  if (typeof errors === 'object') {
+    const messages = [];
+    for (const [field, fieldErrors] of Object.entries(errors)) {
+      const fieldName = formatFieldName(field);
+      if (Array.isArray(fieldErrors)) {
+        fieldErrors.forEach(err => {
+          if (field === 'non_field_errors') {
+            messages.push(err);
+          } else {
+            messages.push(`${fieldName}: ${err}`);
+          }
+        });
+      } else {
+        messages.push(`${fieldName}: ${fieldErrors}`);
+      }
+    }
+    return messages.join('; ') || 'Validation error occurred';
+  }
+  
+  return 'Validation error occurred';
+};
+
+// Format field names for display (snake_case to Title Case)
+const formatFieldName = (field) => {
+  if (field === 'non_field_errors') return 'Error';
+  return field
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+// Create error object from response
 export const createErrorFromResponse = async (error, response) => {
   const baseError = parseBackendError(error, response);
   
   if (response) {
     try {
-      const backendMessage = await extractErrorMessage(response);
-      // Use backend message if it's more specific
-      if (backendMessage && backendMessage !== 'An error occurred') {
-        baseError.message = backendMessage;
-      }
+      const message = await extractErrorMessage(response);
+      return { ...baseError, message };
     } catch (e) {
-      // Keep the default message if we can't parse backend response
+      // If message extraction fails, return base error
+      return baseError;
     }
   }
   
   return baseError;
 };
 
-// Log errors for debugging
+// Format error for display to user
+export const formatErrorForDisplay = (error) => {
+  if (typeof error === 'string') return error;
+  if (error?.message) return error.message;
+  if (error?.title) return error.title;
+  return 'An error occurred';
+};
+
+// Log error to console (can be extended to send to logging service)
 export const logError = (error, context = '') => {
-  console.error(`[Error ${context}]:`, {
-    message: error.message,
-    stack: error.stack,
-    timestamp: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-    online: navigator.onLine,
-    context
-  });
+  const errorMessage = context ? `[${context}] ${error}` : error;
+  console.error(errorMessage, error);
+  
+  // TODO: Send to logging service (Sentry, etc.)
+  // if (window.Sentry) {
+  //   window.Sentry.captureException(error, { context });
+  // }
 };
