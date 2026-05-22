@@ -9,7 +9,9 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && \
-    apt-get install -y build-essential libpq-dev gcc && \
+    apt-get install -y build-essential libpq-dev gcc ffmpeg \
+    libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
+    libgdk-pixbuf-xlib-2.0-0 libffi-dev shared-mime-info && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
@@ -19,10 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project files
 COPY . .
 
-# Create non-root user
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-USER appuser
-
-# Run migrations and start server in one CMD
+# Run migrations and start ASGI server (Daphne) for WebSocket support
 CMD python manage.py migrate --noinput && \
-    python manage.py runserver 0.0.0.0:8000
+    python manage.py sync_patches && \
+    daphne -b 0.0.0.0 -p 8000 backend.asgi:application
