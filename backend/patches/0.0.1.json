@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "title": "Repository Bootstrap",
+  "summary": "Initialized the monorepo and seeded the first backend/frontend project structure before a runnable end-to-end workflow existed.",
+  "changes": {
+    "added": [
+      "Initial monorepo structure for frontend, backend, and infrastructure",
+      "Early Docker Compose and Nginx foundations",
+      "Initial authentication planning branch merged into main"
+    ],
+    "improved": [
+      "Base repository organization for multi-service development"
+    ],
+    "fixed": []
+  }
+}
