@@ -8,12 +8,16 @@ from django.db.models import *
 from django.utils.translation import gettext_lazy as _
 
 from email_validator import EmailNotValidError, validate_email
+from uuid import uuid4
 
-from celery import shared_task
 import datetime
 import random
 import string
 import logging
+
+from utils.cache import CustomCache
+
+verification_cache = CustomCache(prefix="verification_token:", default_timeout=600)
 
 logger = logging.getLogger(__name__)
 
@@ -22,32 +26,26 @@ logger = logging.getLogger(__name__)
 alpha = string.ascii_uppercase
 digits = string.digits
 
-VERIFICATION_TOKENS: list[VerificationToken] = []
-
-
-@shared_task
-def clear_verification_tokens() -> None:
-    """Clear expired verification tokens."""
-    global VERIFICATION_TOKENS
-    logger.debug("Checking for expired verification tokens...")
-    expired: list[VerificationToken] = []
-    for token in VERIFICATION_TOKENS[
-        :
-    ]:  # Create a copy to avoid modification during iteration
-        token.timeout -= 1
-        if token.timeout <= 0:
-            expired.append(token)
-    for token in expired:
-        token.del_self()
-
-
 class VerificationToken:
+    CACHE_PREFIX = "verification_token:"
+    CACHE_TIMEOUT_SECONDS = 60 * 10
     token: str
     timeout: int
 
     def __init__(self, user: AuthAcc, reason: str) -> None:
         self.user = user
         self.reason = reason
+
+    @classmethod
+    def _cache_key(cls, user: AuthAcc) -> str:
+        user_id = getattr(user, "pk", None)
+        if user_id is None:
+            user_id = user.email
+        return f"verification_token_{user_id}"
+
+    @classmethod
+    def _cache_timeout(cls) -> int:
+        return cls.CACHE_TIMEOUT_SECONDS
 
     def _gen(self) -> str:
         aplhatoken = random.choices(alpha, k=3)
@@ -71,11 +69,20 @@ class VerificationToken:
                 token = self._gen()
                 usertoken.token = token
             usertoken.timeout = 10
+            verification_cache.set(
+                VerificationToken._cache_key(usertoken.user),
+                usertoken,
+                VerificationToken._cache_timeout(),
+            )
             return usertoken.token
         token = self._gen()
         self.token = token
         self.timeout = 10
-        VERIFICATION_TOKENS.append(self)
+        verification_cache.set(
+            VerificationToken._cache_key(self.user),
+            self,
+            VerificationToken._cache_timeout(),
+        )
         return self.token
 
     @staticmethod
@@ -93,19 +100,14 @@ class VerificationToken:
 
     @staticmethod
     def get_user(user: AuthAcc) -> Optional[VerificationToken]:
-        for token in VERIFICATION_TOKENS:
-            if token.user == user:
-                return token
+        token = verification_cache.get(VerificationToken._cache_key(user))
+        if isinstance(token, VerificationToken):
+            return token
         return None
 
     def del_self(self) -> None:
-        token = VerificationToken.get_user(self.user)
-        if token:
-            VERIFICATION_TOKENS.remove(token)
-            del token
-            del self
-        else:
-            del self
+        verification_cache.delete(VerificationToken._cache_key(self.user))
+        del self
 
     @staticmethod
     def delete(user: AuthAcc) -> None:
@@ -193,6 +195,7 @@ class AuthAccManager(BaseUserManager):
 
 
 class AuthAcc(AbstractBaseUser):
+    id = UUIDField(primary_key=True, editable=False, default=uuid4)
     email = EmailField(max_length=100, unique=True)
     username = CharField(max_length=100)
     password = models.CharField(_("password"), max_length=128)
@@ -255,6 +258,7 @@ class AuthAcc(AbstractBaseUser):
     def set_last_login(self) -> None:
         self.last_login = datetime.datetime.now()
         self.save(update_fields=["last_login"])
+    
 
 
 def authenticate(email: str, password: str) -> Optional[AuthAcc]:

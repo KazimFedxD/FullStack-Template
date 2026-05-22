@@ -31,7 +31,7 @@ class RequestLoggingMiddleware(MiddlewareMixin):
                 'path': request.path,
                 'query_params': dict(request.GET),
                 'user': str(request.user) if hasattr(request, 'user') and request.user.is_authenticated else 'Anonymous',
-                'user_id': request.user.id if hasattr(request, 'user') and request.user.is_authenticated else None,
+                'user_id': str(request.user.id) if hasattr(request, 'user') and request.user.is_authenticated else None,
                 'ip': self.get_client_ip(request),
                 'user_agent': request.META.get('HTTP_USER_AGENT', '')[:200],
                 'status_code': response.status_code,

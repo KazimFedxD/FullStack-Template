@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
-from celery.schedules import crontab
 import os
 import dj_database_url
 
@@ -192,10 +191,6 @@ CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 # Celery Beat settings for periodic tasks
 CELERY_BEAT_SCHEDULE = {
-    "clear-verification-tokens": {
-        "task": "usermanagement.models.clear_verification_tokens",
-        "schedule": 60.0,  # Run every 60 seconds
-    },
     # Add your custom periodic tasks here
 }
 CELERY_TIMEZONE = "UTC"
