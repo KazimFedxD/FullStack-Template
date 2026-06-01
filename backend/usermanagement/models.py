@@ -6,6 +6,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db import models
 from django.db.models import *
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 
 from email_validator import EmailNotValidError, validate_email
 from uuid import uuid4
@@ -20,6 +21,13 @@ from utils.cache import CustomCache
 verification_cache = CustomCache(prefix="verification_token:", default_timeout=600)
 
 logger = logging.getLogger(__name__)
+
+VERIFICATION_REASONS = (
+    "email_verification",
+    "password_reset",
+    "password_change",
+    "account_delete",
+)
 
 # Create your models here.
 
@@ -37,11 +45,12 @@ class VerificationToken:
         self.reason = reason
 
     @classmethod
-    def _cache_key(cls, user: AuthAcc) -> str:
+    def _cache_key(cls, user: AuthAcc, reason: str | None = None) -> str:
         user_id = getattr(user, "pk", None)
         if user_id is None:
             user_id = user.email
-        return f"verification_token_{user_id}"
+        token_reason = reason or "email_verification"
+        return f"verification_token_{user_id}_{token_reason}"
 
     @classmethod
     def _cache_timeout(cls) -> int:
@@ -63,14 +72,14 @@ class VerificationToken:
         Returns:
             str: TOKEN
         """
-        usertoken = VerificationToken.get_user(self.user)
+        usertoken = VerificationToken.get_user(self.user, self.reason)
         if usertoken:
             if new:
                 token = self._gen()
                 usertoken.token = token
             usertoken.timeout = 10
             verification_cache.set(
-                VerificationToken._cache_key(usertoken.user),
+                VerificationToken._cache_key(usertoken.user, usertoken.reason),
                 usertoken,
                 VerificationToken._cache_timeout(),
             )
@@ -79,7 +88,7 @@ class VerificationToken:
         self.token = token
         self.timeout = 10
         verification_cache.set(
-            VerificationToken._cache_key(self.user),
+            VerificationToken._cache_key(self.user, self.reason),
             self,
             VerificationToken._cache_timeout(),
         )
@@ -87,7 +96,7 @@ class VerificationToken:
 
     @staticmethod
     def check(user: AuthAcc, token: str, reason: str) -> bool:
-        usertoken = VerificationToken.get_user(user)
+        usertoken = VerificationToken.get_user(user, reason)
         if not usertoken:
             raise ValueError("User Token Not Found")
         if usertoken.token == token:
@@ -99,21 +108,28 @@ class VerificationToken:
         return False
 
     @staticmethod
-    def get_user(user: AuthAcc) -> Optional[VerificationToken]:
-        token = verification_cache.get(VerificationToken._cache_key(user))
+    def get_user(user: AuthAcc, reason: str | None = None) -> Optional[VerificationToken]:
+        token = verification_cache.get(VerificationToken._cache_key(user, reason))
         if isinstance(token, VerificationToken):
             return token
         return None
 
     def del_self(self) -> None:
-        verification_cache.delete(VerificationToken._cache_key(self.user))
+        verification_cache.delete(VerificationToken._cache_key(self.user, self.reason))
         del self
 
     @staticmethod
-    def delete(user: AuthAcc) -> None:
-        token = VerificationToken.get_user(user)
-        if token:
-            token.del_self()
+    def delete(user: AuthAcc, reason: str | None = None) -> None:
+        if reason:
+            token = VerificationToken.get_user(user, reason)
+            if token:
+                token.del_self()
+            return
+
+        for token_reason in VERIFICATION_REASONS:
+            token = VerificationToken.get_user(user, token_reason)
+            if token:
+                token.del_self()
 
 
 class AuthAccManager(BaseUserManager):
@@ -256,7 +272,7 @@ class AuthAcc(AbstractBaseUser):
         return self.email
 
     def set_last_login(self) -> None:
-        self.last_login = datetime.datetime.now()
+        self.last_login = timezone.now()
         self.save(update_fields=["last_login"])
     
 

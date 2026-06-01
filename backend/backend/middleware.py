@@ -29,7 +29,6 @@ class RequestLoggingMiddleware(MiddlewareMixin):
             request_data = {
                 'method': request.method,
                 'path': request.path,
-                'query_params': dict(request.GET),
                 'user': str(request.user) if hasattr(request, 'user') and request.user.is_authenticated else 'Anonymous',
                 'user_id': str(request.user.id) if hasattr(request, 'user') and request.user.is_authenticated else None,
                 'ip': self.get_client_ip(request),

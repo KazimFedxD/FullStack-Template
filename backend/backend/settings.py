@@ -26,7 +26,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-4k3a4kybqv4ig34&y6#rvv-m(_-(esk30%2m^xwbyqfh(zeul#")
+SECRET_KEY = os.getenv(
+    "SECRET_KEY", "django-insecure-4k3a4kybqv4ig34&y6#rvv-m(_-(esk30%2m^xwbyqfh(zeul#"
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "True") == "True"
@@ -58,20 +60,19 @@ INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
-    "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    
     "rest_framework_simplejwt.token_blacklist",
     "rest_framework",
-    
     "django_celery_beat",
     "django_ratelimit",
-    
     "corsheaders",
+    "channels",
     
     "api",
+    
     "usermanagement",
+
 ]
 
 MIDDLEWARE = [
@@ -104,7 +105,16 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "backend.wsgi.application"
+ASGI_APPLICATION = "backend.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("redis", 6379)],
+        },
+    },
+}
 
 
 # Database
@@ -136,6 +146,7 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+AUTH_USER_MODEL = "usermanagement.AuthAcc"  # Use custom user model
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
@@ -167,20 +178,31 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
 ]
-CORS_ALLOWS_CREDENTIALS = True  # Allow credentials for CORS requests
+CORS_ALLOW_CREDENTIALS = True  # Allow credentials for CORS requests
 
 # ==========================================
 # CACHE CONFIGURATION
 # ==========================================
 
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': os.getenv("REDIS_URL", "redis://redis:6379/1"),
-        'KEY_PREFIX': os.getenv("CACHE_PREFIX", "app"),
-        'TIMEOUT': 300,  # 5 minutes default
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv("REDIS_URL", "redis://redis:6379/1"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+        "KEY_PREFIX": os.getenv("CACHE_PREFIX", "app"),
+        "TIMEOUT": 300,  # 5 minutes default
     }
 }
+
+# ==========================================
+# RATE LIMITING CONFIGURATION
+# ==========================================
+
+# Use the default cache for rate limiting
+RATELIMIT_USE_CACHE = "default"
+RATELIMIT_KEY_PREFIX = "ratelimit:"
 
 # ==========================================
 # CELERY CONFIGURATION
@@ -191,7 +213,7 @@ CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 
 # Celery Beat settings for periodic tasks
 CELERY_BEAT_SCHEDULE = {
-    # Add your custom periodic tasks here
+
 }
 CELERY_TIMEZONE = "UTC"
 
@@ -200,13 +222,12 @@ CELERY_TIMEZONE = "UTC"
 # ==========================================
 
 # Import rate limit configuration
+
 from .ratelimit_config import RATE_LIMITS, RATELIMIT_VIEW
+
 
 # ==========================================
 # LOGGING CONFIGURATION
 # ==========================================
 
-# Import logging configuration
 from .logging_config import LOGGING
-
-AUTH_USER_MODEL = "usermanagement.AuthAcc"  # Use custom user model

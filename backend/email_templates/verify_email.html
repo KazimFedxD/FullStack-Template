@@ -1,13 +1,13 @@
     <div class="container">
-        <h1>Email Verification</h1>
-        <p>Thank you for registering with {app_name}!</p>
-        <p>Please verify your email address using the verification code below:</p>
+        <h1>{title}</h1>
+        <p>{intro}</p>
         <div class="code">{code}</div>
-        <p>Alternatively, you can click the button below to verify your email:</p>
-        <a href="{base_url}/verify?email={email}&code={code}" class="button">Verify Email</a>
+        <p>If you prefer, use the button below to continue in the app:</p>
+        <a href="{button_url}" class="button">{button_label}</a>
         <div class="info">
+            <strong>Destination:</strong> {masked_email}<br>
             <strong>Security Note:</strong><br>
-            This code will expire in 10 minutes. If you didn't create an account with {app_name}, please ignore this email.
+            {security_note}
         </div>
         <div class="footer">
             <p>Best regards,<br>The {app_name} Team</p>

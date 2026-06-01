@@ -12,9 +12,12 @@ RATE_LIMITS = {
         'register': '3/h',        # 3 registrations per hour
         'verify_email': '10/h',   # 10 email verifications per hour
         'resend_verification': '3/h',  # 3 resend verification per hour
+        'request_password_reset': '5/h',
+        'reset_password': '5/h',
+        'request_password_change': '5/h',
+        'change_password': '5/h',
         'logout': '10/m',         # 10 logouts per minute
         'refresh_token': '20/m',  # 20 token refreshes per minute
-        'change_password': '5/h', # 5 password changes per hour
     },
     
     # User profile operations
@@ -22,7 +25,6 @@ RATE_LIMITS = {
         'view': '60/m',           # 60 profile views per minute
         'update': '10/h',         # 10 profile updates per hour
         'delete': '2/d',          # 2 account deletions per day
-        'get_user': '60/m',       # 60 user profile requests per minute
     },
     
     # Contact/General API

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getAccessToken, clearAuthData, logoutUser, getUserData, saveAuthData, fetchUserProfile } from '../utils/auth';
+import { useMessages } from './MessageContext';
 
 const AuthContext = createContext(null);
 
@@ -17,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const { showError } = useMessages();
 
   const checkAuth = useCallback(async () => {
     setIsLoading(true);
@@ -38,6 +40,13 @@ export const AuthProvider = ({ children }) => {
         const profileResult = await fetchUserProfile();
         if (profileResult.ok && profileResult.data) {
           setUser(profileResult.data);
+        } else if (!profileResult.ok && profileResult.error) {
+          showError({
+            title: 'Profile Sync Failed',
+            message: typeof profileResult.error === 'string'
+              ? profileResult.error
+              : 'We could not refresh your profile data right now.',
+          });
         }
       } else {
         // Either no token or no user data - clear everything and set as unauthenticated
@@ -49,27 +58,35 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Auth check error:', error);
+      showError({
+        title: 'Session Check Failed',
+        message: 'We could not confirm your session. Please sign in again.',
+      });
       setIsAuthenticated(false);
       setUser(null);
       clearAuthData();
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [showError]);
 
   const login = useCallback((authData) => {
     // Save auth data to localStorage
+    const userId = authData.user_id || authData.id;
+    const userEmail = authData.user_email || authData.email;
+    const username = authData.username;
+
     saveAuthData({
-      user_id: authData.user_id,
-      user_email: authData.user_email || authData.email,
-      username: authData.username
+      user_id: userId,
+      user_email: userEmail,
+      username
     });
     
     setIsAuthenticated(true);
     setUser({ 
-      id: authData.user_id, 
-      email: authData.user_email || authData.email,
-      username: authData.username
+      id: userId, 
+      email: userEmail,
+      username
     });
   }, []);
 
@@ -78,6 +95,10 @@ export const AuthProvider = ({ children }) => {
       await logoutUser();
     } catch (error) {
       console.error('Logout error:', error);
+      showError({
+        title: 'Logout Failed',
+        message: 'We could not end the session cleanly. Your local session data was cleared anyway.',
+      });
     } finally {
       setIsAuthenticated(false);
       setUser(null);
@@ -86,7 +107,7 @@ export const AuthProvider = ({ children }) => {
         checkAuth();
       }, 100);
     }
-  }, [checkAuth]);
+  }, [checkAuth, showError]);
 
   // Check authentication on mount
   useEffect(() => {
