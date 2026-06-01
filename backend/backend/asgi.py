@@ -8,12 +8,11 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
 # is populated before importing code that may import ORM models.
 django_asgi_app = get_asgi_application()
 
-from stream.routing import websocket_urlpatterns
-from stream.middleware import CookieJWTAuthMiddleware
-
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
-        "websocket": CookieJWTAuthMiddleware(URLRouter(websocket_urlpatterns)),
+        # WebSocket support is scaffolded for future expansion.
+        # Add a real websocket routing module here when a live stream app exists.
+        "websocket": URLRouter([]),
     }
 )
