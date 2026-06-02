@@ -1,14 +1,17 @@
 from django.urls import path, include
+
 from .views import (
     contact,
     is_admin,
     patches_detail,
     patches_list,
     sitemap_xml,
+    robots_txt,
 )
 
 urlpatterns = [
     path("sitemap.xml", sitemap_xml, name="sitemap_xml"),
+    path("robots.txt", robots_txt, name="robots_txt"),
     
     path("patches/", patches_list, name="patches_list"),
     path("patches/<str:version>/", patches_detail, name="patches_detail"),

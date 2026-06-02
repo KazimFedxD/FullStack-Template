@@ -1,4 +1,4 @@
-from .general import contact, is_admin, sitemap_xml
+from .general import contact, is_admin, sitemap_xml, robots_txt
 from .patches import patches_detail, patches_list
 
 __all__ = [
@@ -7,4 +7,5 @@ __all__ = [
     "patches_detail",
     "patches_list",
     "sitemap_xml",
+    "robots_txt",
 ]

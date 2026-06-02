@@ -84,6 +84,18 @@ def sitemap_xml(request: Request) -> HttpResponse:
     response["Cache-Control"] = "public, max-age=3600"
     return response
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def robots_txt(request: Request) -> HttpResponse:
+    """Serve a robots.txt file to guide search engine crawlers."""
+    lines = [
+        "User-agent: *",
+        "Disallow: /admin/",
+        "Disallow: /api/",
+        "Sitemap: {}/sitemap.xml".format(SEO_CANONICAL_BASE_URL),
+    ]
+    content = "\n".join(lines)
+    return HttpResponse(content, content_type="text/plain; charset=utf-8")
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
